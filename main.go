@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/apex/log"
 	_ "github.com/go-sql-driver/mysql"
@@ -29,6 +30,9 @@ func main() {
 	addr := ":" + os.Getenv("PORT")
 	app := mux.NewRouter()
 	app.HandleFunc("/", h.ping).Methods("GET")
+	app.HandleFunc("/dbtimeout", h.dbtimeout).Methods("GET")
+	app.HandleFunc("/time", h.timeYourTable).Methods("GET")
+	app.HandleFunc("/gotimeout", gotimeout).Methods("GET")
 	if err := http.ListenAndServe(addr, app); err != nil {
 		log.WithError(err).Fatal("error listening")
 	}
@@ -56,11 +60,38 @@ func New() (h handler, err error) {
 
 }
 
+func (h handler) timeYourTable(w http.ResponseWriter, r *http.Request) {
+	_, err := h.db.Exec("UPDATE your_table SET id=?, val=? WHERE id=?",
+		1,
+		time.Now().Unix(),
+		1,
+	)
+	if err != nil {
+		log.WithError(err).Error("failed to ping database")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	fmt.Fprintf(w, "OK")
+}
+
+func (h handler) dbtimeout(w http.ResponseWriter, r *http.Request) {
+	_, err := h.db.Exec(`SELECT SLEEP(5.5);`)
+	if err != nil {
+		log.WithError(err).Error("failed to ping database")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	fmt.Fprintf(w, "OK")
+}
+
 func (h handler) ping(w http.ResponseWriter, r *http.Request) {
 	err := h.db.Ping()
 	if err != nil {
 		log.WithError(err).Error("failed to ping database")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	fmt.Fprintf(w, "OK")
+}
+
+func gotimeout(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(5 * time.Second)
 	fmt.Fprintf(w, "OK")
 }
