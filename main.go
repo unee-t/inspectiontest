@@ -61,16 +61,22 @@ func New() (h handler, err error) {
 }
 
 func (h handler) timeYourTable(w http.ResponseWriter, r *http.Request) {
-	// res, err := h.db.Exec(`UPDATE your_table SET id=?, val=? WHERE id=?`,
-	// 	1,
-	// 	time.Now().Unix(),
-	// 	1,
-	// )
-	// res, err := h.db.Exec("UPDATE your_table SET val = 3 WHERE id = 1; UPDATE your_table SET val = 4 WHERE id = 1; UPDATE your_table SET val = 5 WHERE id = 1; SELECT SLEEP(5.5);")
-	res, err := h.db.Exec(fmt.Sprintf("UPDATE your_table SET val = %d WHERE id = 1; SELECT SLEEP(5.5);", time.Now().Unix()))
+	tx, err := h.db.Begin()
 	if err != nil {
-		log.WithError(err).Error("failed to update database")
+		log.WithError(err).Error("failed to start transaction")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	res, execErr := tx.Exec(fmt.Sprintf("UPDATE your_table SET val = %d WHERE id = 1; SELECT SLEEP(5.5);", time.Now().Unix()))
+	// res, execErr := tx.Exec(fmt.Sprintf("UPDATE your_table SET val = %d WHERE id = 1;", time.Now().Unix()))
+	if execErr != nil {
+		log.WithError(err).Error("rolling back")
+		err = tx.Rollback()
+		if err != nil {
+			log.WithError(err).Error("failed to roll back")
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		log.WithError(err).Error("failed to commit")
 	}
 	count, err := res.RowsAffected()
 	if err != nil {
