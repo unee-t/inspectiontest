@@ -1,13 +1,13 @@
 {
   "name": "transactiontest",
   "profile": "uneet-dev",
-  "proxy": {
-    "timeout": 1
-  },
   "error_pages": {
     "disable": true
   },
   "regions": [
     "ap-southeast-1"
-  ]
+  ],
+  "proxy": {
+    "timeout": 5
+  }
 }

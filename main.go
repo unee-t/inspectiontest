@@ -61,13 +61,14 @@ func New() (h handler, err error) {
 }
 
 func (h handler) timeYourTable(w http.ResponseWriter, r *http.Request) {
+	log.Info("with TX ... NO timeout")
 	tx, err := h.db.Begin()
 	if err != nil {
 		log.WithError(err).Error("failed to start transaction")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	log.Info("Executing")
 	res, execErr := tx.Exec(fmt.Sprintf("UPDATE your_table SET val = %d WHERE id = 1; SELECT SLEEP(5.5);", time.Now().Unix()))
-	// res, execErr := tx.Exec(fmt.Sprintf("UPDATE your_table SET val = %d WHERE id = 1;", time.Now().Unix()))
 	if execErr != nil {
 		log.WithError(err).Error("rolling back")
 		err = tx.Rollback()
@@ -75,6 +76,7 @@ func (h handler) timeYourTable(w http.ResponseWriter, r *http.Request) {
 			log.WithError(err).Error("failed to roll back")
 		}
 	}
+	log.Info("About to commit")
 	if err := tx.Commit(); err != nil {
 		log.WithError(err).Error("failed to commit")
 	}
